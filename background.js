@@ -1,5 +1,4 @@
 function getHostname(url) {
-    //gets the domain name of a website
     //getHostname("https://en.wikipedia.org/wiki/Holy_Roman_Empire") => 
     //"en.wikipedia.org"
     const hostname = url.match(/:\/\/(?:www[1-9]?\.)?(.[^\/:]+)/)
@@ -9,14 +8,13 @@ function getHostname(url) {
         return null;
     }
 }
-
 function setTerritories(amount, callback = () => { }) {
     if (!isNaN(amount)) {
         chrome.storage.local.set({ territories: amount })
         callback();
     }
     else {
-        return NaN
+        //placeholder
     }
 }
 function addTerritories(amount, callback = () => { }) {
@@ -25,31 +23,28 @@ function addTerritories(amount, callback = () => { }) {
             new_amount = result.territories + amount
             chrome.storage.local.set({ territories: new_amount })
             callback(new_amount);
-            return new_amount;
         });
     }
     else {
-        return NaN
+        //placeholder
     }
 }
-function subtractTerritoriess(amount, callback = () => { }) {
-
-}
-function getTabUrls() {
-    chrome.tabs.query({}, function (tabs) {
-        const taburls = tabs.map(tab => tab.url);
-        chrome.storage.local.set({ urls: taburls });
-        chrome.storage.local.set({ visited_hostnames: taburls.map(url => getHostname(url)) });
-    });
-}
-function getWindows() {
-    chrome.windows.getAll({ populate: true }, function (all_windows) {
-        const windowids = {}
-        for (windows of all_windows) {
-            windowids[windows.id] = windows;
-        }
-        chrome.storage.local.set({ windowids: windowids })
-    })
+function subtractTerritories(amount, callback1 = () => { }, callback2 = () => { }) {
+    if (!isNaN(amount)) {
+        chrome.storage.local.get('territories', function (result) {
+            if (amount > result.territories){
+                callback2(amount);
+            }
+            else{
+                new_amount = result.territories + amount
+                chrome.storage.local.set({ territories: new_amount })
+                callback1(new_amount);
+            }
+        });
+    }
+    else {
+        //placeholder
+    }
 }
 function getTerritories(callback = () => { }) {
     chrome.storage.local.get('territories', function (result) {
@@ -58,8 +53,31 @@ function getTerritories(callback = () => { }) {
         //return result.tabcoins;
     });
 }
+function checkStorage(items, new_value = 0) {
+    //checkStorage can accept strings and array of strings
+    //makes sure values exist in chrome storage and creates them if they do not exist
+    //eventually will be changed to object instead of array
+    if (Object.prototype.toString.call(items) === "[object String]") {
+        chrome.storage.local.get(items, function (result) {
+            if (Object.keys(result).length === 0 && result.constructor === Object) {
+                chrome.storage.local.set({ [items]: new_value });
+            }
+        });
+    }
+    else {
+        chrome.storage.local.get(items, function (result) {
+            var create_obj = {}
+            for (item of items) {
+                if (result.hasOwnProperty(item) === false) {
+                    create_obj[item] = new_value;
+                }
+            }
+            chrome.storage.local.set(create_obj);
+        });
+    }
+}
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-    //when a new tab is opened, checks to see if hostname is found in a list of hostnames
+    //TBD later
     if (tab.status === "complete") {
         addTerritories(1);
         // chrome.storage.local.get('visited_hostnames', function (result) {
@@ -77,41 +95,29 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
         //     }
         // });
     }
-
-
 });
 chrome.runtime.onInstalled.addListener(function () {
-    chrome.storage.local.get(["territories"], function (result) {
-        if (typeof (result.territories) !== "number") {
-            chrome.storage.local.set({ territories: 0 })
-        }
-    });
-    chrome.storage.local.get(["last_update"], function (result) {
-        if(Object.prototype.toString.call(result.last_update) !== "[object Date]"){
-            console.log("NEW")
-            chrome.storage.local.set({last_update: new Date()})
-        }
-        else{
-            console.log("not new")
-        }
-    });
+    checkStorage("territories", 0);
+    checkStorage("last_update", Date.now());
+    checkStorage("buildings", {
+        "scout": 0, "settler": 0, "man-at-arms": 0, "soldier": 0, "overlord": 0,
+        "merchant": 0, "galleon": 0, "flag-maker": 0, "colonial_offices": 0, "plane": 0, "diplomat": 0,
+        "administrative_offices": 0, "spaceship": 0, "warp_field": 0, "portal": 0, "the_machine": 0
+    })
 });
-// chrome.runtime.onInstalled.addListener(function () {
-//     console.log("alarm test")
-//     const next_minute = new Date();
-//     next_minute.setMinutes(next_minute.getMinutes());
-//     next_minute.setSeconds(0);
-//     next_minute.setMilliseconds(0);
-//     chrome.alarms.create("waitforminute", { when: Date.parse(next_minute), periodInMinutes: 1 })
-//     chrome.alarms.onAlarm.addListener(function (alarm) {
-//         console.log(new Date())
-//         chrome.windows.getAll({ populate: true }, function (all_windows) {
-//             const windowids = {}
-//             for (windows of all_windows) {
-//                 windowids[windows.id] = windows;
-//             }
-//             console.log(windowids)
-//             chrome.storage.local.set({ windowids: windowids })
-//         })
+// function getTabUrls() {
+//     chrome.tabs.query({}, function (tabs) {
+//         const taburls = tabs.map(tab => tab.url);
+//         chrome.storage.local.set({ urls: taburls });
+//         chrome.storage.local.set({ visited_hostnames: taburls.map(url => getHostname(url)) });
+//     });
+// }
+// function getWindows() {
+//     chrome.windows.getAll({ populate: true }, function (all_windows) {
+//         const windowids = {}
+//         for (windows of all_windows) {
+//             windowids[windows.id] = windows;
+//         }
+//         chrome.storage.local.set({ windowids: windowids })
 //     })
-// })
+// }
