@@ -1,0 +1,14 @@
+.buyButton{
+    cursor:hand;
+    background-color:lightgrey;
+    /* The background color is the only thing I actually want
+    it makes the buttons not look like an ugly monstrosity */
+    margin-top:0.5rem;
+    user-select: none;
+    
+}
+
+.buyButton:active{
+    background-color:lightgreen;
+    color:black;
+}
