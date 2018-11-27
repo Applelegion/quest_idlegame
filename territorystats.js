@@ -1,8 +1,6 @@
-class Building {
+class Item {
     constructor(name, basecost, tps, id = false) {
-        //move basecost and amount out of Building 
         this.quantity;
-        this.cost;
         this.basecost = basecost;
         this.tps = tps;
         this.name = name;
@@ -17,7 +15,7 @@ class Building {
         }
         this.child.textContent = name;
         this.child.className = "buyButton";
-        document.body.appendChild(this.child);
+        document.getElementById("item_div").appendChild(this.child);
     }
     getCost(callback = () => { }) {
         chrome.storage.local.get('buildings', function (result) {
@@ -66,10 +64,9 @@ function subtractTerritories(amount, callback1 = () => { }, callback2 = () => { 
 }
 function recalculateTPS(callback = () => { }) {
     chrome.storage.local.get("buildings", function (result) {
-        console.log("recalculating")
         let tps = 0;
         for (var key of Object.keys(result.buildings)) {
-            tps += (result.buildings[key] * building[key].tps);
+            tps += (result.buildings[key] * item[key].tps);
         }
         let tpsCounter = document.getElementById("tpsCounter");
         tpsCounter.textContent = "TPS: " + tps;
@@ -79,17 +76,29 @@ function recalculateTPS(callback = () => { }) {
 function updateButtons(){
     chrome.storage.local.get("buildings", function (result) {
         for (var key of Object.keys(result.buildings)){
-            currentBuilding = building[key];
-            currentBuilding.cost = currentBuilding.basecost * (result.buildings[key] + 1);
-            building[key].child.textContent = currentBuilding.name + ":" + result.buildings[key] + ":" + currentBuilding.tps + ":" + currentBuilding.cost;
+            let currentItem = item[key];
+            let cost = currentItem.basecost * (result.buildings[key] + 1);
+            item[key].child.textContent = currentItem.name + ":" + result.buildings[key] + ":" + currentItem.tps + ":" + cost;
         }
     })
 }
 function init() {
+
+    const PRICE_GROWTH = 1.1;
+    item.scout = new Item("scout", 50, 1);
+    item.settler = new Item("settler", 400, 10);
+    item.manAtArms = new Item("man at arms", 2500, 50, "manAtArms");
+    //plural of "man at arms" is "men at arms"
+    item.soldier = new Item("soldier", 10000, 240);
+    item.overlord = new Item("overlord", 30000, 1000);
+    item.merchant = new Item("merchant", 100000, 5000);
+    item.galleon = new Item("galleon", 450000, 20000);
+    item.flagMaker = new Item("flag maker", 9999999, 1234567, "flagMaker");
+
     document.getElementById("reset").onclick = function (){
-        console.log("resetting")
+        //reset function
         chrome.storage.local.set({
-            territories: 10000, 
+            territories: 25000, 
             lastUpdate: Date.now(), 
             "buildings": {
                 "scout": 0, "settler": 0, "manAtArms": 0, "soldier": 0, 
@@ -99,41 +108,32 @@ function init() {
             recalculateTPS();
             updateButtons();
         });
-    }
-    building.scout = new Building("scout", 50, 1);
-    building.settler = new Building("settler", 400, 10);
-    building.manAtArms = new Building("man at arms", 25000, 50, "manAtArms");
-    //plural of "man at arms" is "men at arms"
-    building.soldier = new Building("soldier", 10000, 240);
-    building.overlord = new Building("overlord", 30000, 1000);
-    building.merchant = new Building("merchant", 100000, 5000);
-    building.galleon = new Building("galleon", 450000, 20000);
-    building.flagMaker = new Building("flag maker", 9999999, 1234567, "flagMaker");
+    } 
     var tps;
     chrome.storage.local.get("buildings", function (result) {
         tps = 0;
         for (var buildings of Object.keys(result.buildings)) {
             let key = buildings;
             let amount = result.buildings[key];
-            let currentBuilding = building[key]
-            tps += (amount * currentBuilding.tps);
-            currentBuilding.cost = currentBuilding.basecost * (amount + 1);
-            currentBuilding.child.textContent = currentBuilding.name + ":" + amount + ":" + currentBuilding.tps + ":" + currentBuilding.cost;
+            let currentItem = item[key]
+            tps += (amount * currentItem.tps);
+            let cost = Math.round(currentItem.basecost * (PRICE_GROWTH ** (amount)));
+            currentItem.child.textContent = currentItem.name + ":" + amount + ":" + currentItem.tps + ":" + cost;
             function buy () {
+                // Button Listener function
                 chrome.storage.local.get(["territories", "buildings"], function (result) {
-                    currentBuilding.cost = currentBuilding.basecost * (result.buildings[key] + 1);
-                    if (result.territories >= currentBuilding.cost) {
-                        let newBuildings = result.buildings;
-                        newBuildings[key] = newBuildings[key] + 1;
-                        chrome.storage.local.set({ "buildings": newBuildings });
-                        building[key].child.textContent = currentBuilding.name + ":" + newBuildings[key] + ":" + currentBuilding.tps + ":" + currentBuilding.cost;
-                        setTerritories(result.territories - currentBuilding.cost);
+                    let cost = currentItem.basecost * (result.buildings[key] + 1);
+                    if (result.territories >= cost) {
+                        result.buildings[key] = (result.buildings[key] + 1);
+                        chrome.storage.local.set({ "buildings": result.buildings });
+                        item[key].child.textContent = currentItem.name + ":" + result.buildings[key] + ":" + currentItem.tps + ":" + Math.round(currentItem.basecost * (PRICE_GROWTH ** (result.buildings[key])));
+                        setTerritories(result.territories - cost);
                         recalculateTPS();
-                        document.getElementById(currentBuilding.id).addEventListener("click", buy);
+                        document.getElementById(currentItem.id).addEventListener("click", buy);
                     }
                 });
             }
-            document.getElementById(currentBuilding.id).addEventListener("click", buy);
+            document.getElementById(currentItem.id).addEventListener("click", buy);
         }
         let tpsCounter = document.getElementById("tpsCounter");
         tpsCounter.textContent = "TPS: " + tps;
@@ -168,18 +168,7 @@ function init() {
         }
     });
 }
-var building = {}; 
+var item = {}; 
 init();
-// function getHostname(url) {
-//     //getHostname("https://en.wikipedia.org/wiki/Holy_Roman_Empire") => 
-//     //"en.wikipedia.org"
-//     const hostname = url.match(/:\/\/(?:www[1-9]?\.)?(.[^\/:]+)/);
-//     if (Array.isArray(hostname) === true && hostname.length === 2) {
-//         return hostname[1];
-//     }
-//     else {
-//         return null;
-//     }
-// }
 
 

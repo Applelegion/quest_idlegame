@@ -7,17 +7,14 @@ function addTerritories(amount, callback = () => { }) {
             callback(newAmount);
         });
     }
-    else {
-        //placeholder
-    }
 }
-function checkStorage(items){
+function checkStorage(items) {
     //makes sure keys exist in chrome storage and creates them if they do not exist
     //takes an obj with the keys to be checked, 
     //and the value to set if the keys do not exist
-    chrome.storage.local.get(Object.keys(items), function (result){
+    chrome.storage.local.get(Object.keys(items), function (result) {
         let setObj = {}
-        for (key of Object.keys(items)){
+        for (key of Object.keys(items)) {
             if (result.hasOwnProperty(key) === false) {
                 setObj[key] = items[key]
             }
@@ -45,15 +42,37 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
         // });
     }
 });
+function beginApocalypse(changed, area) {
+    if (changed.hasOwnProperty("buildings")) {
+        if (changed.buildings.newValue.manAtArms > 0) {
+            console.log("the invasion begins");
+            chrome.storage.local.set({ "invasion_counter": 0 });
+            chrome.alarms.create("invasion", { periodInMinutes: 10 });
+            chrome.alarms.onAlarm.addListener(function (alarm) {
+                if (alarm.name === "invasion") {
+                    console.log("you are being invaded!!!");
+                    chrome.storage.local.get("invasion_counter", function (result){
+                        chrome.storage.local.set({"invasion_counter": result.invasion + 1})
+                    })
+                }
+            });
+            chrome.storage.onChanged.removeListener(beginApocalypse);
+        }
+    }
+}
+
 chrome.runtime.onInstalled.addListener(function () {
-    checkStorage({"territories": 50});
-    checkStorage({"lastUpdate": Date.now()});
-    checkStorage({"buildings": {
-        "scout": 0, "settler": 0, "manAtArms": 0, "soldier": 0, "overlord": 0,
-        "merchant": 0, "galleon": 0, "flagMaker": 0, 
-        // "colonialOffice": 0, "diplomat": 0, "plane": 0, "administrativeOffice": 0 
-        //"spaceship": 0, "warpField": 0, "portal": 0, "theMachine": 0
-    }})
+    checkStorage({ "territories": 50 });
+    checkStorage({ "lastUpdate": Date.now() });
+    checkStorage({
+        "buildings": {
+            "scout": 0, "settler": 0, "manAtArms": 0, "soldier": 0, "overlord": 0,
+            "merchant": 0, "galleon": 0, "flagMaker": 0,
+            // "colonialOffice": 0, "diplomat": 0, "plane": 0, "administrativeOffice": 0 
+            //"spaceship": 0, "warpField": 0, "portal": 0, "theMachine": 0
+        }
+    })
+    chrome.storage.onChanged.addListener(beginApocalypse);
 });
 // function getTabUrls() {
 //     chrome.tabs.query({}, function (tabs) {
